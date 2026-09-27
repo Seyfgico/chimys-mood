@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.seyfbk.dynamicnotify.data.Mood
-import com.seyfbk.dynamicnotify.service.SseForegroundService
+import com.seyfbk.dynamicnotify.service.MoodForegroundService
 
 class RandomMessageReceiver : BroadcastReceiver() {
 
@@ -13,9 +13,9 @@ class RandomMessageReceiver : BroadcastReceiver() {
             runCatching { Mood.valueOf(it) }.getOrNull()
         } ?: return
 
-        val serviceIntent = Intent(context, SseForegroundService::class.java).apply {
-            action = SseForegroundService.ACTION_SHOW_RANDOM_MESSAGE
-            putExtra(SseForegroundService.EXTRA_MOOD, mood.name)
+        val serviceIntent = Intent(context, MoodForegroundService::class.java).apply {
+            action = MoodForegroundService.ACTION_SHOW_RANDOM_MESSAGE
+            putExtra(MoodForegroundService.EXTRA_MOOD, mood.name)
         }
         context.startForegroundService(serviceIntent)
     }

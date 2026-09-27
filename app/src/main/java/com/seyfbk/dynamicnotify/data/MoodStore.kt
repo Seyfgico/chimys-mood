@@ -5,18 +5,14 @@ import org.json.JSONArray
 
 /**
  * Persists everything the mood engine needs across process restarts:
- * the current mood + when it was picked, extra messages pulled in by
- * MessageSyncWorker (on WiFi), and a "shuffle bag" of remaining message
- * indices per mood so the same line doesn't repeat until the pool cycles.
+ * the current mood + when it was picked, the mood history log, and a
+ * "shuffle bag" of remaining message indices per mood so the same line
+ * doesn't repeat until the whole pool cycles. Fully local — no network.
  */
 class MoodStore(context: Context) {
 
     private val sp = context.applicationContext
         .getSharedPreferences("dynamic_notify_mood", Context.MODE_PRIVATE)
-
-    var syncUrl: String
-        get() = sp.getString("sync_url", "") ?: ""
-        set(value) = sp.edit().putString("sync_url", value.trim()).apply()
 
     var currentMood: Mood?
         get() = sp.getString("current_mood", null)?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
@@ -26,10 +22,21 @@ class MoodStore(context: Context) {
         get() = sp.getLong("current_mood_ts", 0L)
         set(value) = sp.edit().putLong("current_mood_ts", value).apply()
 
-    private fun extraKey(mood: Mood) = "extra_${mood.name}"
     private fun queueKey(mood: Mood) = "queue_${mood.name}"
 
-    // --- Mood history (for local "learning" + optional remote sync) ---
+    fun fullPoolFor(mood: Mood): List<String> = MoodMessages.defaultsFor(mood)
+
+    /** Remaining shuffled indices for [mood]'s current pool; empty means "needs reshuffle". */
+    fun queueFor(mood: Mood): MutableList<Int> {
+        val raw = sp.getString(queueKey(mood), null) ?: return mutableListOf()
+        return raw.split(",").filter { it.isNotBlank() }.map { it.toInt() }.toMutableList()
+    }
+
+    fun saveQueue(mood: Mood, queue: List<Int>) {
+        sp.edit().putString(queueKey(mood), queue.joinToString(",")).apply()
+    }
+
+    // --- Mood history (for the local streak/"learning" signal) ---
 
     data class HistoryEntry(val mood: Mood, val timestampMillis: Long)
 
@@ -59,36 +66,6 @@ class MoodStore(context: Context) {
                 HistoryEntry(mood, obj.optLong("ts"))
             }
         }.getOrDefault(emptyList())
-    }
-
-    fun extrasFor(mood: Mood): List<String> {
-        val raw = sp.getString(extraKey(mood), null) ?: return emptyList()
-        return runCatching {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).map { arr.getString(it) }
-        }.getOrDefault(emptyList())
-    }
-
-    /** Merges [messages] into the stored extras for [mood], de-duplicated. */
-    fun mergeExtras(mood: Mood, messages: List<String>) {
-        val merged = (extrasFor(mood) + messages).distinct()
-        val arr = JSONArray()
-        merged.forEach { arr.put(it) }
-        sp.edit().putString(extraKey(mood), arr.toString()).apply()
-        // Pool changed size — reset the shuffle bag so new lines enter rotation.
-        sp.edit().remove(queueKey(mood)).apply()
-    }
-
-    fun fullPoolFor(mood: Mood): List<String> = MoodMessages.defaultsFor(mood) + extrasFor(mood)
-
-    /** Remaining shuffled indices for [mood]'s current pool; empty means "needs reshuffle". */
-    fun queueFor(mood: Mood): MutableList<Int> {
-        val raw = sp.getString(queueKey(mood), null) ?: return mutableListOf()
-        return raw.split(",").filter { it.isNotBlank() }.map { it.toInt() }.toMutableList()
-    }
-
-    fun saveQueue(mood: Mood, queue: List<Int>) {
-        sp.edit().putString(queueKey(mood), queue.joinToString(",")).apply()
     }
 
     companion object {

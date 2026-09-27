@@ -5,46 +5,42 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.seyfbk.dynamicnotify.data.Mood
-import com.seyfbk.dynamicnotify.data.MoodStore
-import com.seyfbk.dynamicnotify.data.NotificationApiClient
-import com.seyfbk.dynamicnotify.data.Prefs
-import com.seyfbk.dynamicnotify.data.PushNotification
 import com.seyfbk.dynamicnotify.data.MoodMessages
+import com.seyfbk.dynamicnotify.data.MoodStore
+import com.seyfbk.dynamicnotify.data.PushNotification
 import com.seyfbk.dynamicnotify.engine.MessagePicker
 import com.seyfbk.dynamicnotify.engine.MoodInsights
 import com.seyfbk.dynamicnotify.overlay.DynamicIslandOverlay
 import com.seyfbk.dynamicnotify.scheduler.MoodAlarmScheduler
 import com.seyfbk.dynamicnotify.scheduler.RandomMessageScheduler
-import com.seyfbk.dynamicnotify.worker.MessageSyncWorker
-import okhttp3.sse.EventSource
 
 /**
- * Keeps a persistent SSE connection to the server (as in the original
- * push-notifications-api Android app) and forwards every notification to
- * the DynamicIslandOverlay instead of a normal system notification.
+ * Fully local mood-companion service: no server, no network. It arms the
+ * 3x/day mood-ask schedule, drives the Dynamic Island overlay, and picks
+ * messages purely from the offline pools in MoodMessages.
  */
-class SseForegroundService : Service() {
+class MoodForegroundService : Service() {
 
-    private var eventSource: EventSource? = null
     private var overlay: DynamicIslandOverlay? = null
     private lateinit var moodStore: MoodStore
     private lateinit var messagePicker: MessagePicker
     private lateinit var moodInsights: MoodInsights
-    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
-        startForeground(NOTIF_ID, buildStatusNotification("Connecting…"))
+        startForeground(NOTIF_ID, buildStatusNotification())
         overlay = DynamicIslandOverlay(applicationContext)
         moodStore = MoodStore(applicationContext)
         messagePicker = MessagePicker(moodStore)
         moodInsights = MoodInsights(moodStore)
         MoodAlarmScheduler.scheduleAll(applicationContext)
-        connect()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,12 +74,7 @@ class SseForegroundService : Service() {
             MoodMessages.streakBonusFor(mood)?.let { bonus ->
                 mainHandler.postDelayed({
                     overlay?.show(
-                        PushNotification(
-                            title = "Chimy 🐱",
-                            message = bonus,
-                            url = null,
-                            color = MoodMessages.colorFor(mood)
-                        )
+                        PushNotification(title = "Chimy 🐱", message = bonus, color = MoodMessages.colorFor(mood))
                     )
                 }, STREAK_BONUS_DELAY_MS)
             }
@@ -91,73 +82,33 @@ class SseForegroundService : Service() {
 
         val nextAsk = MoodAlarmScheduler.nextAskAfter(now)
         RandomMessageScheduler.scheduleRandomPushes(applicationContext, mood, nextAsk)
-
-        // Any internet connection (not just WiFi) can trigger a sync/learn pass.
-        MessageSyncWorker.runOnce(applicationContext)
     }
 
     private fun showMessageFor(mood: Mood) {
         val text = messagePicker.next(mood)
         overlay?.show(
-            PushNotification(
-                title = "Chimy 🐱",
-                message = text,
-                url = null,
-                color = MoodMessages.colorFor(mood)
-            )
-        )
-    }
-
-    private fun connect() {
-        val prefs = Prefs(applicationContext)
-        if (!prefs.isConfigured) {
-            // No push-notifications-api server configured — that's fine, the
-            // mood check-ins and offline messages still run on their own.
-            updateStatusNotification("Mood check-ins active (no server connected)")
-            return
-        }
-
-        val api = NotificationApiClient(prefs.serverUrl)
-        eventSource = api.connectEvents(
-            token = prefs.deviceToken,
-            onConnected = {
-                updateStatusNotification("Connected — listening for pushes")
-            },
-            onNotification = { notification ->
-                overlay?.show(notification)
-            },
-            onFailure = {
-                updateStatusNotification("Reconnecting…")
-                eventSource?.cancel()
-                connect()
-            }
+            PushNotification(title = "Chimy 🐱", message = text, color = MoodMessages.colorFor(mood))
         )
     }
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Dynamic Island service", NotificationManager.IMPORTANCE_MIN
+                CHANNEL_ID, "Chimy's Mood service", NotificationManager.IMPORTANCE_MIN
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
     }
 
-    private fun buildStatusNotification(text: String) =
+    private fun buildStatusNotification() =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("DynamicNotify")
-            .setContentText(text)
+            .setContentTitle("Chimy's Mood")
+            .setContentText("Watching over Chimy's mood — fully offline")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()
 
-    private fun updateStatusNotification(text: String) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIF_ID, buildStatusNotification(text))
-    }
-
     override fun onDestroy() {
-        eventSource?.cancel()
         overlay?.detach()
         super.onDestroy()
     }

@@ -30,9 +30,11 @@ import com.seyfbk.dynamicnotify.data.Mood
 import com.seyfbk.dynamicnotify.data.PushNotification
 
 /**
- * The pill itself: a little cat sits at the leading edge at all times.
- * When [expanded] the title/message fade + expand in next to it, mimicking
- * the iOS "Dynamic Island" alert shape.
+ * The pill itself: a little critter sits at the leading edge at all times.
+ * Collapsed, it's just the icon — tapping it (via [onClick]) opens the
+ * message. Expanded, the title/message fade + expand in next to the icon,
+ * mimicking the iOS "Dynamic Island" alert shape; tapping the pill itself
+ * while expanded is a no-op (the surrounding overlay handles dismissal).
  */
 @Composable
 fun IslandPill(
@@ -55,7 +57,7 @@ fun IslandPill(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier
             .background(Color.Black, RoundedCornerShape(cornerRadius))
-            .clickable(enabled = expanded) { onClick() }
+            .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .widthIn(min = 46.dp)
     ) {

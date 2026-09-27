@@ -13,53 +13,42 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.seyfbk.dynamicnotify.data.Mood
-import com.seyfbk.dynamicnotify.data.MoodStore
-import com.seyfbk.dynamicnotify.data.NotificationApiClient
-import com.seyfbk.dynamicnotify.data.Prefs
 import com.seyfbk.dynamicnotify.scheduler.MoodAlarmScheduler
-import com.seyfbk.dynamicnotify.service.SseForegroundService
-import com.seyfbk.dynamicnotify.worker.MessageSyncWorker
+import com.seyfbk.dynamicnotify.service.MoodForegroundService
 
 class MainActivity : ComponentActivity() {
-
-    private lateinit var prefs: Prefs
 
     private val notifPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = Prefs(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
 
-        // The mood engine runs independently of the push server — start it
-        // and arm the 3x/day schedule as soon as the app is opened.
+        // Fully local — arm the 3x/day schedule and start the mood engine
+        // as soon as the app is opened. No server, no network, no setup.
         MoodAlarmScheduler.scheduleAll(this)
         startForegroundServiceCompat()
-        MessageSyncWorker.schedulePeriodic(this)
 
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    ConnectScreen(
-                        prefs = prefs,
+                    HomeScreen(
                         hasOverlayPermission = { hasOverlayPermission() },
                         onRequestOverlayPermission = { requestOverlayPermission() },
                         needsExactAlarmPermission = { needsExactAlarmPermission() },
                         onRequestExactAlarmPermission = { requestExactAlarmPermission() },
-                        onConnected = { startForegroundServiceCompat() },
                         onTestMoodAsk = { mood ->
-                            startService(Intent(this, SseForegroundService::class.java).apply {
-                                action = SseForegroundService.ACTION_SHOW_RANDOM_MESSAGE
-                                putExtra(SseForegroundService.EXTRA_MOOD, mood.name)
+                            startService(Intent(this, MoodForegroundService::class.java).apply {
+                                action = MoodForegroundService.ACTION_SHOW_RANDOM_MESSAGE
+                                putExtra(MoodForegroundService.EXTRA_MOOD, mood.name)
                             })
                         }
                     )
@@ -69,7 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startForegroundServiceCompat() {
-        val intent = Intent(this, SseForegroundService::class.java)
+        val intent = Intent(this, MoodForegroundService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent)
         else startService(intent)
     }
@@ -99,22 +88,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ConnectScreen(
-    prefs: Prefs,
+private fun HomeScreen(
     hasOverlayPermission: () -> Boolean,
     onRequestOverlayPermission: () -> Unit,
     needsExactAlarmPermission: () -> Boolean,
     onRequestExactAlarmPermission: () -> Unit,
-    onConnected: () -> Unit,
     onTestMoodAsk: (Mood) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val moodStore = remember { MoodStore(context) }
-
-    var serverUrl by remember { mutableStateOf(prefs.serverUrl.ifBlank { "http://" }) }
-    var syncUrl by remember { mutableStateOf(moodStore.syncUrl) }
-    var status by remember { mutableStateOf(if (prefs.isConfigured) "Connected as ${prefs.deviceToken.take(8)}…" else "") }
-    var isLoading by remember { mutableStateOf(false) }
     var overlayGranted by remember { mutableStateOf(hasOverlayPermission()) }
     var needsExactAlarm by remember { mutableStateOf(needsExactAlarmPermission()) }
 
@@ -127,17 +107,9 @@ private fun ConnectScreen(
     ) {
         Text("🐱 Chimy's Mood", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
-            "Connects to your push-notifications-api server and shows incoming pushes as a Dynamic Island at the top of the screen.",
+            "A fully offline mood companion — no server, no account, no setup. " +
+                "Chimy checks in 3 times a day as a Dynamic Island at the top of the screen.",
             style = MaterialTheme.typography.bodyMedium
-        )
-
-        OutlinedTextField(
-            value = serverUrl,
-            onValueChange = { serverUrl = it },
-            label = { Text("Server address") },
-            placeholder = { Text("http://192.168.1.10:3000") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
         )
 
         if (!overlayGranted) {
@@ -165,10 +137,12 @@ private fun ConnectScreen(
         }
 
         HorizontalDivider()
-        Text("Chimy's mood 🐱", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("How it works", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(
-            "Mood check-ins pop up 3x a day (morning, evening, night) as an interactive island. " +
-                "Between check-ins, random supportive messages show up on their own — all offline by default.",
+            "Mood check-ins pop up 3x a day (morning, evening, night) as an interactive island — " +
+                "tap a mood to answer. Between check-ins, messages from that mood's pool show up on " +
+                "their own: tap the island to open one, tap anywhere else to dismiss it. " +
+                "Every message lives in the app itself — nothing is downloaded.",
             style = MaterialTheme.typography.bodySmall
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -176,58 +150,5 @@ private fun ConnectScreen(
             OutlinedButton(onClick = { onTestMoodAsk(Mood.NORMAL) }) { Text("Test: Normal") }
             OutlinedButton(onClick = { onTestMoodAsk(Mood.GOOD) }) { Text("Test: Good") }
         }
-
-        OutlinedTextField(
-            value = syncUrl,
-            onValueChange = {
-                syncUrl = it
-                moodStore.syncUrl = it
-            },
-            label = { Text("Message sync URL (optional)") },
-            placeholder = { Text("https://your-server/messages") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            "When set, DynamicNotify pulls extra emotional messages over WiFi and adds them " +
-                "to the local pool per mood — the app never needs this to function.",
-            style = MaterialTheme.typography.labelSmall
-        )
-
-        HorizontalDivider()
-
-        Button(
-            enabled = !isLoading && serverUrl.length > 8,
-            onClick = {
-                isLoading = true
-                status = "Registering…"
-                val client = NotificationApiClient(serverUrl.trimEnd('/'))
-                client.register { token, error ->
-                    isLoading = false
-                    if (token != null) {
-                        prefs.serverUrl = serverUrl
-                        prefs.deviceToken = token
-                        status = "Connected as ${token.take(8)}…"
-                        onConnected()
-                    } else {
-                        status = "Failed: ${error ?: "unknown error"}"
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isLoading) "Connecting…" else "Register & Connect")
-        }
-
-        if (status.isNotBlank()) {
-            Text(status, style = MaterialTheme.typography.bodySmall)
-        }
-
-        Spacer(Modifier.weight(1f))
-        Text(
-            "Server API is compatible with viktorholk/push-notifications-api (POST /register, GET /events).",
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
     }
 }

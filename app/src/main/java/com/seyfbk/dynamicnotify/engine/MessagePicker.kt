@@ -5,7 +5,7 @@ import com.seyfbk.dynamicnotify.data.MoodStore
 
 /**
  * Picks the next message for a mood without repeating until every line in
- * the pool (defaults + synced extras) has been shown once.
+ * the pool has been shown once.
  */
 class MessagePicker(private val store: MoodStore) {
 

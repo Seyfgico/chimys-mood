@@ -1,5 +1,6 @@
 package com.seyfbk.dynamicnotify.overlay
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -7,6 +8,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -33,12 +39,25 @@ enum class CritterKind {
     }
 }
 
+/**
+ * Renders whichever critter is current, morphing smoothly (fade + scale)
+ * whenever [kind] changes — this is the cat-touched-becomes-a-fish moment.
+ */
 @Composable
 fun AnimatedCritterIcon(kind: CritterKind, accent: Color, active: Boolean) {
     Box(modifier = Modifier.size(26.dp), contentAlignment = Alignment.Center) {
-        when (kind) {
-            CritterKind.CAT -> AnimatedCat(accent = accent, active = active)
-            CritterKind.FISH -> AnimatedFish(active = active)
+        AnimatedContent(
+            targetState = kind,
+            transitionSpec = {
+                (fadeIn(tween(380)) + scaleIn(initialScale = 0.5f, animationSpec = tween(380))) togetherWith
+                    (fadeOut(tween(220)) + scaleOut(targetScale = 0.5f, animationSpec = tween(220)))
+            },
+            label = "critter-morph"
+        ) { targetKind ->
+            when (targetKind) {
+                CritterKind.CAT -> AnimatedCat(accent = accent, active = active)
+                CritterKind.FISH -> AnimatedFish(active = active)
+            }
         }
     }
 }

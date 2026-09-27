@@ -49,14 +49,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.animation:animation")
 
-    // SSE + networking
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
-
-    // JSON
+    // JSON (used for local mood-history persistence — no network involved)
     implementation("org.json:json:20240303")
-
-    // Background scheduling for the mood-message sync job
-    implementation("androidx.work:work-runtime-ktx:2.9.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }
