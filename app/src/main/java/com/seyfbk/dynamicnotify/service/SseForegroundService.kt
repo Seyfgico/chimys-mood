@@ -19,7 +19,7 @@ import com.seyfbk.dynamicnotify.overlay.DynamicIslandOverlay
 import com.seyfbk.dynamicnotify.scheduler.MoodAlarmScheduler
 import com.seyfbk.dynamicnotify.scheduler.RandomMessageScheduler
 import com.seyfbk.dynamicnotify.worker.MessageSyncWorker
-import okhttp3.EventSource
+import okhttp3.sse.EventSource
 
 /**
  * Keeps a persistent SSE connection to the server (as in the original

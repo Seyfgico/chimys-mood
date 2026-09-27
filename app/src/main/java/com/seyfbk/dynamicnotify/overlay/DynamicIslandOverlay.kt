@@ -7,7 +7,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
-import android.view.PixelFormat
+import android.graphics.PixelFormat
 import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.layout.Box
