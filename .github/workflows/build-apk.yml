@@ -24,17 +24,23 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build_log.txt
+        continue-on-error: true
 
-      - name: Upload APK (workflow artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: chimys-mood-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Publish APK as a GitHub Release asset
+      - name: Publish build log + APK as a GitHub Release (always)
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Chimy's Mood debug build ${{ github.run_number }}
-          files: app/build/outputs/apk/debug/app-debug.apk
+          name: Chimy's Mood build ${{ github.run_number }}
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            build_log.txt
+          fail_on_unmatched_files: false
+
+      - name: Fail job if the build actually failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
