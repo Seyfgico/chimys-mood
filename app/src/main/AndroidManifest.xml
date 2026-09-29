@@ -36,13 +36,13 @@
                 android:value="mood_companion_overlay" />
         </service>
 
-        <receiver android:name=".scheduler.MoodAskReceiver" android:exported="false" />
-        <receiver android:name=".scheduler.RandomMessageReceiver" android:exported="false" />
+        <receiver android:name=".scheduler.TickReceiver" android:exported="false" />
         <receiver android:name=".scheduler.BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+        <receiver android:name=".service.MoodPickReceiver" android:exported="false" />
 
     </application>
 

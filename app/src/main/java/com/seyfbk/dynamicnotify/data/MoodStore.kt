@@ -22,18 +22,18 @@ class MoodStore(context: Context) {
         get() = sp.getLong("current_mood_ts", 0L)
         set(value) = sp.edit().putLong("current_mood_ts", value).apply()
 
-    private fun queueKey(mood: Mood) = "queue_${mood.name}"
+    private fun queueKey(key: String) = "queue_$key"
 
     fun fullPoolFor(mood: Mood): List<String> = MoodMessages.defaultsFor(mood)
 
-    /** Remaining shuffled indices for [mood]'s current pool; empty means "needs reshuffle". */
-    fun queueFor(mood: Mood): MutableList<Int> {
-        val raw = sp.getString(queueKey(mood), null) ?: return mutableListOf()
+    /** Remaining shuffled indices for the pool named [key]; empty means "needs reshuffle". */
+    fun queueFor(key: String): MutableList<Int> {
+        val raw = sp.getString(queueKey(key), null) ?: return mutableListOf()
         return raw.split(",").filter { it.isNotBlank() }.map { it.toInt() }.toMutableList()
     }
 
-    fun saveQueue(mood: Mood, queue: List<Int>) {
-        sp.edit().putString(queueKey(mood), queue.joinToString(",")).apply()
+    fun saveQueue(key: String, queue: List<Int>) {
+        sp.edit().putString(queueKey(key), queue.joinToString(",")).apply()
     }
 
     // --- Mood history (for the local streak/"learning" signal) ---

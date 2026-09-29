@@ -1,68 +1,66 @@
-# Chimy's Mood 🐱
+# Lina's Mood 🐱
 
-A fully offline Android mood companion. No server, no account, no network
-permission at all — every message lives in the app itself. Chimy checks in
-3 times a day (morning, evening, night) as a "Dynamic Island" style pill
-at the top of the screen, and shows supportive messages from Chimy's
-current mood pool the rest of the time.
+A fully offline Android companion: a little cat that lives on your screen,
+checks in on Lina's mood every 2 hours, and pops in with a mood-flavored
+message every 30 minutes in between. No server, no account, no network
+permission at all — every message lives in the app itself.
 
-## How it works
+## The cat
 
-- `MoodForegroundService` arms the 3x/day check-in schedule and drives the
-  overlay — no server connection of any kind.
-- `MoodAlarmScheduler` + `MoodAskReceiver` fire the check-in at the
-  scheduled times (default 9:00 / 19:00 / 22:30 — edit `SLOT_TIMES` in
-  `MoodAlarmScheduler.kt`).
-- Answering a check-in picks a message from that mood's pool
-  (`MoodMessages.kt`) and shows it; `RandomMessageScheduler` then queues a
-  few more random pushes from the same pool before the next check-in.
-- `MessagePicker` uses a shuffle-bag per mood so a line won't repeat until
-  the whole pool (100+ lines per mood) has cycled once.
-- `MoodStore` keeps a local mood-history log; `MoodInsights` reads it for
-  a streak (3+ of the same mood in a row triggers one extra follow-up
-  message about a minute later) — the one bit of local "learning," done
-  entirely on-device with no external model.
+- Drawn entirely in code (`overlay/CatCharacter.kt`) — no image assets — so
+  it can be animated: ears wiggle, it blinks, its tail wags at a speed and
+  amplitude that reflects the current mood (fast and big when happy, slow
+  and low when sad).
+- Idles between random actions — jump, spin, play with a ball, look
+  around, stretch, nap, or a quiet sigh with a tear — weighted by mood
+  (`pickAction` in `CatCharacter.kt`): mostly jumping/playing when Lina's
+  mood is Good, mostly napping/sighing when it's Too Bad.
+- **Always on screen** once enabled — tapping anywhere else on the screen
+  never dismisses it. The only way to remove it is the switch in the app
+  (`CatPrefs.enabled`).
+- **Draggable** — touch and drag the cat anywhere on screen; its position
+  is remembered (`CatPrefs.posX/posY`) across restarts.
+- A speech bubble docks above it for messages and the mood check-in
+  (`overlay/Bubbles.kt`); tapping a message bubble dismisses it early, or
+  it clears itself automatically after enough time to read it.
+- If the cat is switched off, or the overlay permission isn't granted,
+  everything falls back to plain Android notifications instead
+  (`service/NotificationHelper.kt`) — the mood check-ins and messages
+  still work, just without the on-screen cat.
+
+## Schedule
+
+`scheduler/TickScheduler.kt` runs one alarm chain, every 30 minutes,
+from 8:00 to 22:30:
+- **Every 2 hours, on the hour** (8:00, 10:00, 12:00 ... 22:00) → a mood
+  check-in (with a greeting that varies by time of day —
+  `data/Mood.kt`'s `DaySlot`)
+- **Every other half-hour mark** → a message from the current mood's pool
+- About 1 in 5 of those messages is swapped for a "just for fun" line
+  instead (`data/FunMessages.kt`) — silly, affectionate, no particular
+  mood attached
 
 ## The message pools
 
-All content lives in `data/MoodMessages.kt`:
-- **Too Bad** — 150+ lines, the largest pool, all comfort/reassurance
+All content lives in `data/MoodMessages.kt` and `data/FunMessages.kt`:
+- **Too Bad** — 150+ lines, comfort and reassurance
 - **Normal** — 115+ lines
 - **Good** — 130+ lines
+- **Fun** — 60+ playful "lina 🥺 your cat loves you" style lines
 
-Nothing is downloaded or generated remotely — this is the full, final set
-you can edit directly in that file whenever you want to add, remove, or
-tweak a line.
-
-## The island interaction
-
-- A new message appears as a **small icon only** (cat, idle animation) —
-  nothing opens automatically.
-- **Tap the icon** → it morphs smoothly into a small black fish (swimming
-  animation) and expands to reveal the message. The overlay grows to
-  cover the screen so it can detect a tap anywhere else.
-- **Tap anywhere else on screen** → the island disappears entirely. The
-  next scheduled message (random push, or the next 3x/day check-in) will
-  bring it back on its own.
-- If a message is left untouched for ~20 seconds, it quietly disappears
-  rather than sitting on screen indefinitely.
-- The mood-ask check-in (with its Too Bad / Normal / Good buttons) is
-  exempt from the tap-outside-to-dismiss behavior — it stays up until
-  answered, since it's waiting on you rather than just informing you.
-
-## App icon
-
-The launcher icon is your provided artwork directly
-(`res/mipmap-xxxhdpi/ic_launcher.png` / `ic_launcher_round.png`) — swap in
-a new file with the same name any time you want to update it.
+`MessagePicker` uses a shuffle-bag per pool so a line won't repeat until
+the whole pool has cycled once. `MoodStore` keeps a local mood-history
+log; `MoodInsights` reads it for a streak (3+ of the same mood in a row
+triggers one extra follow-up message about a minute later) — entirely
+on-device, no external model.
 
 ## Permissions
 
-Only what's needed for a fully local app: drawing the overlay
-(`SYSTEM_ALERT_WINDOW`), running the foreground service, posting the
-status notification, exact alarms for on-time check-ins, and
-`RECEIVE_BOOT_COMPLETED` so the schedule survives a restart. No `INTERNET`
-permission — the app can't reach the network even if it wanted to.
+Overlay (`SYSTEM_ALERT_WINDOW`) for the cat, foreground service +
+notification for the always-running mood engine, exact alarms for on-time
+ticks, and `RECEIVE_BOOT_COMPLETED` so the schedule survives a restart.
+No `INTERNET` permission — the app can't reach the network even if it
+wanted to.
 
 ## Opening the project
 
@@ -71,42 +69,42 @@ permission — the app can't reach the network even if it wanted to.
    publishes it as a GitHub Release automatically on every push.
 2. Run on a device/emulator running Android 8.0+ (minSdk 26).
 3. On first launch: grant notification permission (Android 13+), the
-   "draw over other apps" overlay permission, and — on Android 12+ — the
-   "Alarms & reminders" permission for on-time check-ins.
+   "draw over other apps" overlay permission (for the cat), and — on
+   Android 12+ — the "Alarms & reminders" permission for on-time ticks.
 
 ## Project layout
 
 ```
 app/src/main/java/com/seyfbk/dynamicnotify/
-├── MainActivity.kt                  # permissions + test buttons, no server UI
+├── MainActivity.kt                  # permissions, cat on/off switch, test buttons
 ├── data/
-│   ├── Mood.kt                      # Mood + DaySlot (morning/evening/night) enums
-│   ├── MoodMessages.kt              # all message content (100+ per mood)
+│   ├── Mood.kt                      # Mood + DaySlot (time-of-day greetings)
+│   ├── CatPrefs.kt                  # cat on/off + remembered screen position
+│   ├── MoodMessages.kt              # mood message pools (100+ each)
+│   ├── FunMessages.kt               # just-for-fun lines
 │   └── MoodStore.kt                 # local mood history + shuffle-bag state
 ├── engine/
 │   ├── MessagePicker.kt             # shuffle-bag message selection
 │   └── MoodInsights.kt              # local streak detection
 ├── scheduler/
-│   ├── MoodAlarmScheduler.kt        # 3x/day check-in scheduling
-│   ├── MoodAskReceiver.kt           # fires the check-in, re-arms itself
-│   ├── RandomMessageReceiver.kt     # fires an in-between random message
+│   ├── TickScheduler.kt             # 30-min ticks / 2h check-ins / quiet hours
+│   ├── TickReceiver.kt              # handles a tick, re-arms the next one
 │   └── BootReceiver.kt              # re-arms the schedule after a reboot
 ├── overlay/
-│   ├── DynamicIslandOverlay.kt      # WindowManager overlay host + tap logic
-│   ├── IslandPill.kt                # pill UI (message + mood-ask variants)
-│   └── CritterIcon.kt               # animated cat/fish with morph transition
+│   ├── CatCharacter.kt              # the hand-drawn, mood-driven animated cat
+│   ├── CatOverlay.kt                # draggable overlay window + bubble docking
+│   └── Bubbles.kt                   # message + mood-ask speech bubble UI
 └── service/
-    └── MoodForegroundService.kt     # ties it all together, no network
+    ├── MoodForegroundService.kt     # ties it all together, no network
+    ├── NotificationHelper.kt        # fallback notifications when the cat is off
+    └── MoodPickReceiver.kt          # handles a mood button tap from a notification
 ```
 
 ## Notes / things worth deciding next
 
-- Fish odds on show (`CritterKind.random`) are currently unused now that
-  the fish appears specifically on tap rather than randomly — say the word
-  if you'd like an *additional* random chance of a fish even before any
-  tap.
-- The 20-second auto-hide timeout for an untouched message, the streak
-  threshold (3), and the check-in times are all just constants — trivial
+- Check-in cadence (2h), message cadence (30 min), quiet hours (23:00–8:00),
+  the fun-message chance (20%), and the streak threshold (3) are all just
+  constants in `TickScheduler.kt` / `MoodForegroundService.kt` — trivial
   to retune.
 - Since some OEMs (MIUI, ColorOS, etc.) restrict background overlays and
   foreground services aggressively, you may need to whitelist the app in

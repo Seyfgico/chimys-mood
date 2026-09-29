@@ -8,26 +8,30 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import com.seyfbk.dynamicnotify.data.CatPrefs
+import com.seyfbk.dynamicnotify.data.DaySlot
 import com.seyfbk.dynamicnotify.data.Mood
 import com.seyfbk.dynamicnotify.data.MoodMessages
 import com.seyfbk.dynamicnotify.data.MoodStore
-import com.seyfbk.dynamicnotify.data.PushNotification
 import com.seyfbk.dynamicnotify.engine.MessagePicker
 import com.seyfbk.dynamicnotify.engine.MoodInsights
-import com.seyfbk.dynamicnotify.overlay.DynamicIslandOverlay
-import com.seyfbk.dynamicnotify.scheduler.MoodAlarmScheduler
-import com.seyfbk.dynamicnotify.scheduler.RandomMessageScheduler
+import com.seyfbk.dynamicnotify.overlay.CatOverlay
+import com.seyfbk.dynamicnotify.scheduler.TickScheduler
+import java.util.Calendar
+import kotlin.random.Random
 
 /**
- * Fully local mood-companion service: no server, no network. It arms the
- * 3x/day mood-ask schedule, drives the Dynamic Island overlay, and picks
- * messages purely from the offline pools in MoodMessages.
+ * Fully local: no server, no network. Drives the on-screen cat (or, if
+ * the cat is switched off / overlay permission is missing, falls back to
+ * plain notifications) and answers the tick schedule from TickScheduler.
  */
 class MoodForegroundService : Service() {
 
-    private var overlay: DynamicIslandOverlay? = null
+    private var overlay: CatOverlay? = null
     private lateinit var moodStore: MoodStore
+    private lateinit var catPrefs: CatPrefs
     private lateinit var messagePicker: MessagePicker
     private lateinit var moodInsights: MoodInsights
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -36,26 +40,57 @@ class MoodForegroundService : Service() {
         super.onCreate()
         createChannel()
         startForeground(NOTIF_ID, buildStatusNotification())
-        overlay = DynamicIslandOverlay(applicationContext)
+
         moodStore = MoodStore(applicationContext)
+        catPrefs = CatPrefs(applicationContext)
         messagePicker = MessagePicker(moodStore)
         moodInsights = MoodInsights(moodStore)
-        MoodAlarmScheduler.scheduleAll(applicationContext)
+        overlay = CatOverlay(applicationContext)
+        overlay?.updateMood(moodStore.currentMood)
+        overlay?.refresh()
+
+        TickScheduler.scheduleNext(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_SHOW_MOOD_ASK -> {
-                val greeting = intent.getStringExtra(EXTRA_GREETING).orEmpty()
-                overlay?.showMoodAsk(greeting) { mood -> onMoodPicked(mood) }
+            ACTION_TICK -> {
+                if (intent.getBooleanExtra(EXTRA_IS_ASK, false)) askForMood() else pushRandomMessage()
             }
-            ACTION_SHOW_RANDOM_MESSAGE -> {
+            ACTION_MOOD_PICKED -> {
                 intent.getStringExtra(EXTRA_MOOD)
                     ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
-                    ?.let { mood -> showMessageFor(mood) }
+                    ?.let { onMoodPicked(it) }
+            }
+            ACTION_REFRESH_CAT -> overlay?.refresh()
+            ACTION_TEST_MESSAGE -> {
+                intent.getStringExtra(EXTRA_MOOD)
+                    ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
+                    ?.let { showMessageFor(it) }
             }
         }
         return START_STICKY
+    }
+
+    // --------------------------------------------------------------- ticks
+
+    private fun askForMood() {
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val greeting = DaySlot.forHour(hour).greetings.random()
+        if (catUsable()) {
+            overlay?.showAsk(greeting) { mood -> onMoodPicked(mood) }
+        } else {
+            NotificationHelper.postMoodAsk(applicationContext, greeting)
+        }
+    }
+
+    private fun pushRandomMessage() {
+        val mood = moodStore.currentMood ?: Mood.NORMAL
+        // Every so often, send a just-for-fun line instead of a mood message.
+        val useFun = Random.nextInt(100) < 20
+        val text = if (useFun) messagePicker.nextFun() else messagePicker.next(mood)
+        val color = if (useFun) MoodMessages.FUN_COLOR else MoodMessages.colorFor(mood)
+        deliver(text, color)
     }
 
     private fun onMoodPicked(mood: Mood) {
@@ -63,6 +98,7 @@ class MoodForegroundService : Service() {
         moodStore.currentMood = mood
         moodStore.currentMoodTimestamp = now
         moodStore.addHistoryEntry(mood, now)
+        overlay?.updateMood(mood)
 
         showMessageFor(mood) // immediate feedback
 
@@ -72,29 +108,35 @@ class MoodForegroundService : Service() {
         val (streakMood, streakCount) = moodInsights.currentStreak() ?: (mood to 1)
         if (streakMood == mood && streakCount >= 3) {
             MoodMessages.streakBonusFor(mood)?.let { bonus ->
-                mainHandler.postDelayed({
-                    overlay?.show(
-                        PushNotification(title = "Chimy 🐱", message = bonus, color = MoodMessages.colorFor(mood))
-                    )
-                }, STREAK_BONUS_DELAY_MS)
+                mainHandler.postDelayed({ deliver(bonus, MoodMessages.colorFor(mood)) }, STREAK_BONUS_DELAY_MS)
             }
         }
-
-        val nextAsk = MoodAlarmScheduler.nextAskAfter(now)
-        RandomMessageScheduler.scheduleRandomPushes(applicationContext, mood, nextAsk)
     }
 
     private fun showMessageFor(mood: Mood) {
-        val text = messagePicker.next(mood)
-        overlay?.show(
-            PushNotification(title = "Chimy 🐱", message = text, color = MoodMessages.colorFor(mood))
-        )
+        deliver(messagePicker.next(mood), MoodMessages.colorFor(mood))
     }
+
+    private fun deliver(text: String, colorHex: String) {
+        if (catUsable()) {
+            overlay?.showMessage(text, colorHex)
+        } else {
+            NotificationHelper.postMessage(applicationContext, text)
+        }
+    }
+
+    private fun catUsable(): Boolean {
+        val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            Settings.canDrawOverlays(applicationContext)
+        return catPrefs.enabled && hasOverlayPermission
+    }
+
+    // --------------------------------------------------------------- boilerplate
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Chimy's Mood service", NotificationManager.IMPORTANCE_MIN
+                CHANNEL_ID, "Lina's Mood service", NotificationManager.IMPORTANCE_MIN
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
@@ -102,8 +144,8 @@ class MoodForegroundService : Service() {
 
     private fun buildStatusNotification() =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Chimy's Mood")
-            .setContentText("Watching over Chimy's mood — fully offline")
+            .setContentTitle("Lina's Mood")
+            .setContentText("Watching over Lina — fully offline")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()
@@ -119,9 +161,11 @@ class MoodForegroundService : Service() {
         private const val CHANNEL_ID = "dynamic_notify_service"
         private const val NOTIF_ID = 1
 
-        const val ACTION_SHOW_MOOD_ASK = "com.seyfbk.dynamicnotify.SHOW_MOOD_ASK"
-        const val ACTION_SHOW_RANDOM_MESSAGE = "com.seyfbk.dynamicnotify.SHOW_RANDOM_MESSAGE"
-        const val EXTRA_GREETING = "greeting"
+        const val ACTION_TICK = "com.seyfbk.dynamicnotify.TICK"
+        const val ACTION_MOOD_PICKED = "com.seyfbk.dynamicnotify.MOOD_PICKED"
+        const val ACTION_REFRESH_CAT = "com.seyfbk.dynamicnotify.REFRESH_CAT"
+        const val ACTION_TEST_MESSAGE = "com.seyfbk.dynamicnotify.TEST_MESSAGE"
+        const val EXTRA_IS_ASK = "is_ask"
         const val EXTRA_MOOD = "mood"
         private const val STREAK_BONUS_DELAY_MS = 60_000L
     }
