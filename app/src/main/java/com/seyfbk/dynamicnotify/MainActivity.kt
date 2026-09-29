@@ -137,7 +137,7 @@ private fun HomeScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("🐱 Lina's Mood", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("🐱 Lina Mood", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
             "A fully offline mood companion — no server, no account, no setup. A little cat " +
                 "lives on your screen, checks in on Lina's mood every 2 hours, and pops in with " +

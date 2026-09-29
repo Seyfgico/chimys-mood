@@ -1,4 +1,4 @@
-# Lina's Mood 🐱
+# Lina Mood 🐱
 
 A fully offline Android companion: a little cat that lives on your screen,
 checks in on Lina's mood every 2 hours, and pops in with a mood-flavored

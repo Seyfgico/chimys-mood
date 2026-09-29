@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LinasMood"
+rootProject.name = "LinaMood"
 include(":app")
