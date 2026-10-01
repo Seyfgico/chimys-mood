@@ -38,36 +38,61 @@ class MoodForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createChannel()
-        startForeground(NOTIF_ID, buildStatusNotification())
+        try {
+            createChannel()
+            startForeground(NOTIF_ID, buildStatusNotification())
+        } catch (t: Throwable) {
+            com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "startForeground", t)
+            stopSelf()
+            return
+        }
 
-        moodStore = MoodStore(applicationContext)
-        catPrefs = CatPrefs(applicationContext)
-        messagePicker = MessagePicker(moodStore)
-        moodInsights = MoodInsights(moodStore)
-        overlay = CatOverlay(applicationContext)
-        overlay?.updateMood(moodStore.currentMood)
-        overlay?.refresh()
+        try {
+            moodStore = MoodStore(applicationContext)
+            catPrefs = CatPrefs(applicationContext)
+            messagePicker = MessagePicker(moodStore)
+            moodInsights = MoodInsights(moodStore)
+        } catch (t: Throwable) {
+            com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "MoodForegroundService.init-state", t)
+            stopSelf()
+            return
+        }
 
-        TickScheduler.scheduleNext(applicationContext)
+        runCatching {
+            overlay = CatOverlay(applicationContext)
+            overlay?.updateMood(moodStore.currentMood)
+            overlay?.refresh()
+        }.onFailure {
+            com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "CatOverlay.refresh", it)
+        }
+
+        runCatching {
+            TickScheduler.scheduleNext(applicationContext)
+        }.onFailure {
+            com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "TickScheduler.scheduleNext", it)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_TICK -> {
-                if (intent.getBooleanExtra(EXTRA_IS_ASK, false)) askForMood() else pushRandomMessage()
+        runCatching {
+            when (intent?.action) {
+                ACTION_TICK -> {
+                    if (intent.getBooleanExtra(EXTRA_IS_ASK, false)) askForMood() else pushRandomMessage()
+                }
+                ACTION_MOOD_PICKED -> {
+                    intent.getStringExtra(EXTRA_MOOD)
+                        ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
+                        ?.let { onMoodPicked(it) }
+                }
+                ACTION_REFRESH_CAT -> overlay?.refresh()
+                ACTION_TEST_MESSAGE -> {
+                    intent.getStringExtra(EXTRA_MOOD)
+                        ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
+                        ?.let { showMessageFor(it) }
+                }
             }
-            ACTION_MOOD_PICKED -> {
-                intent.getStringExtra(EXTRA_MOOD)
-                    ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
-                    ?.let { onMoodPicked(it) }
-            }
-            ACTION_REFRESH_CAT -> overlay?.refresh()
-            ACTION_TEST_MESSAGE -> {
-                intent.getStringExtra(EXTRA_MOOD)
-                    ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
-                    ?.let { showMessageFor(it) }
-            }
+        }.onFailure {
+            com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "onStartCommand(${intent?.action})", it)
         }
         return START_STICKY
     }

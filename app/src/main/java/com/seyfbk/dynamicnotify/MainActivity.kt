@@ -10,14 +10,17 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.seyfbk.dynamicnotify.data.CatPrefs
 import com.seyfbk.dynamicnotify.data.Mood
 import com.seyfbk.dynamicnotify.scheduler.TickScheduler
@@ -37,8 +40,12 @@ class MainActivity : ComponentActivity() {
 
         // Fully local — arm the tick schedule and start the mood engine as
         // soon as the app is opened. No server, no network, no setup.
-        TickScheduler.scheduleNext(this)
-        startForegroundServiceCompat()
+        // Wrapped defensively: if either step fails, log it instead of
+        // crashing before the UI even has a chance to render.
+        runCatching { TickScheduler.scheduleNext(this) }
+            .onFailure { CrashLog.record(this, "TickScheduler.scheduleNext (MainActivity)", it) }
+        runCatching { startForegroundServiceCompat() }
+            .onFailure { CrashLog.record(this, "startForegroundServiceCompat", it) }
 
         setContent {
             MaterialTheme {
@@ -50,7 +57,9 @@ class MainActivity : ComponentActivity() {
                         onRequestExactAlarmPermission = { requestExactAlarmPermission() },
                         onCatToggleChanged = { refreshCat() },
                         onTestMoodAsk = { testAskNow() },
-                        onTestMessage = { mood -> testMessage(mood) }
+                        onTestMessage = { mood -> testMessage(mood) },
+                        readCrashLog = { CrashLog.readAll(this) },
+                        onClearCrashLog = { CrashLog.clear(this) }
                     )
                 }
             }
@@ -121,7 +130,9 @@ private fun HomeScreen(
     onRequestExactAlarmPermission: () -> Unit,
     onCatToggleChanged: () -> Unit,
     onTestMoodAsk: () -> Unit,
-    onTestMessage: (Mood) -> Unit
+    onTestMessage: (Mood) -> Unit,
+    readCrashLog: () -> String,
+    onClearCrashLog: () -> Unit
 ) {
     val context = LocalContext.current
     val catPrefs = remember { CatPrefs(context) }
@@ -129,6 +140,7 @@ private fun HomeScreen(
     var overlayGranted by remember { mutableStateOf(hasOverlayPermission()) }
     var needsExactAlarm by remember { mutableStateOf(needsExactAlarmPermission()) }
     var catEnabled by remember { mutableStateOf(catPrefs.enabled) }
+    var crashLog by remember { mutableStateOf(readCrashLog()) }
 
     Column(
         modifier = Modifier
@@ -144,6 +156,33 @@ private fun HomeScreen(
                 "a message every half hour in between.",
             style = MaterialTheme.typography.bodyMedium
         )
+
+        if (crashLog.isNotBlank()) {
+            Card {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("⚠️ Something crashed recently", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Copy or screenshot this and send it over so it can get fixed:",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    SelectionContainer {
+                        Text(
+                            text = crashLog,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 260.dp)
+                                .verticalScroll(rememberScrollState())
+                        )
+                    }
+                    Button(onClick = {
+                        onClearCrashLog()
+                        crashLog = readCrashLog()
+                    }) { Text("Clear log") }
+                }
+            }
+        }
 
         Card {
             Row(
