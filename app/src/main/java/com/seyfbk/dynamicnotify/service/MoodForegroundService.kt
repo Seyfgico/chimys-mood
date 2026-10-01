@@ -90,6 +90,7 @@ class MoodForegroundService : Service() {
                         ?.let { runCatching { Mood.valueOf(it) }.getOrNull() }
                         ?.let { showMessageFor(it) }
                 }
+                else -> Unit
             }
         }.onFailure {
             com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "onStartCommand(${intent?.action})", it)
