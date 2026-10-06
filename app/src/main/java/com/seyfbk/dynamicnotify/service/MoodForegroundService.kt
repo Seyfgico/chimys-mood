@@ -162,7 +162,7 @@ class MoodForegroundService : Service() {
     private fun createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Lina Mood service", NotificationManager.IMPORTANCE_MIN
+                CHANNEL_ID, "Chimy's Mood service", NotificationManager.IMPORTANCE_MIN
             )
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
@@ -170,8 +170,8 @@ class MoodForegroundService : Service() {
 
     private fun buildStatusNotification() =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Lina Mood")
-            .setContentText("Watching over Lina — fully offline")
+            .setContentTitle("Chimy's Mood")
+            .setContentText("Watching over Chimy — fully offline")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setOngoing(true)
             .build()

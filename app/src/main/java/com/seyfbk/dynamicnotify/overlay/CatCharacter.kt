@@ -47,7 +47,7 @@ enum class CatAction(val durationMs: Int) {
     SIGH(2800)         // head droops, a tear rolls
 }
 
-/** What the cat tends to do depends on how Lina is feeling. */
+/** What the cat tends to do depends on how Chimy is feeling. */
 private fun pickAction(mood: Mood): CatAction {
     val weights: List<Pair<CatAction, Int>> = when (mood) {
         Mood.GOOD -> listOf(

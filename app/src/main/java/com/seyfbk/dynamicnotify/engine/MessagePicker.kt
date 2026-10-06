@@ -16,7 +16,7 @@ class MessagePicker(private val store: MoodStore) {
     fun nextFun(): String = pick("FUN", FunMessages.ALL)
 
     private fun pick(key: String, pool: List<String>): String {
-        if (pool.isEmpty()) return "Lina 🐱"
+        if (pool.isEmpty()) return "Chimy 🐱"
 
         var queue = store.queueFor(key)
         if (queue.isEmpty()) {

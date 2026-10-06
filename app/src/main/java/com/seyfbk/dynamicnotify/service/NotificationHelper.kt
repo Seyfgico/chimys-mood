@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 object NotificationHelper {
 
-    private const val CHANNEL_ID = "lina_messages"
+    private const val CHANNEL_ID = "chimy_messages"
     private const val ASK_ID = 2001
     private val nextMessageId = AtomicInteger(3000)
 
@@ -25,7 +25,7 @@ object NotificationHelper {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (manager.getNotificationChannel(CHANNEL_ID) == null) {
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Lina's messages", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(CHANNEL_ID, "Chimy's messages", NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
     }
@@ -42,7 +42,7 @@ object NotificationHelper {
         ensureChannel(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("Lina 🐱")
+            .setContentTitle("Chimy 🐱")
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(openAppIntent(context))
@@ -56,7 +56,7 @@ object NotificationHelper {
         ensureChannel(context)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("Lina 🐱")
+            .setContentTitle("Chimy 🐱")
             .setContentText(greeting)
             .setStyle(NotificationCompat.BigTextStyle().bigText(greeting))
             .setContentIntent(openAppIntent(context))

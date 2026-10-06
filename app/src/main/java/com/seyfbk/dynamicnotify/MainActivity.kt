@@ -149,10 +149,10 @@ private fun HomeScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("🐱 Lina Mood", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("🐱 Chimy's Mood", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text(
             "A fully offline mood companion — no server, no account, no setup. A little cat " +
-                "lives on your screen, checks in on Lina's mood every 2 hours, and pops in with " +
+                "lives on your screen, checks in on Chimy's mood every 2 hours, and pops in with " +
                 "a message every half hour in between.",
             style = MaterialTheme.typography.bodyMedium
         )
@@ -238,7 +238,7 @@ private fun HomeScreen(
         Text("How it works", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(
             "Drag the cat anywhere on screen — it remembers where you leave it. It asks about " +
-                "Lina's mood every 2 hours, and shows a message from that mood's pool every 30 " +
+                "Chimy's mood every 2 hours, and shows a message from that mood's pool every 30 " +
                 "minutes in between (occasionally just a silly \"I love you\" line for fun). Its " +
                 "little animations — playing, jumping, stretching, napping — match the current mood. " +
                 "Tapping elsewhere on the screen never makes it go away; only the switch above does.",

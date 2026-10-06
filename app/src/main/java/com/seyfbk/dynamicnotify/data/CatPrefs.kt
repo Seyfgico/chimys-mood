@@ -6,7 +6,7 @@ import android.content.Context
 class CatPrefs(context: Context) {
 
     private val sp = context.applicationContext
-        .getSharedPreferences("lina_cat", Context.MODE_PRIVATE)
+        .getSharedPreferences("chimy_cat", Context.MODE_PRIVATE)
 
     var enabled: Boolean
         get() = sp.getBoolean("enabled", true)

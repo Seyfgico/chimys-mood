@@ -1,7 +1,7 @@
-# Lina Mood 🐱
+# Chimy Mood 🐱
 
 A fully offline Android companion: a little cat that lives on your screen,
-checks in on Lina's mood every 2 hours, and pops in with a mood-flavored
+checks in on Chimy's mood every 2 hours, and pops in with a mood-flavored
 message every 30 minutes in between. No server, no account, no network
 permission at all — every message lives in the app itself.
 
@@ -13,7 +13,7 @@ permission at all — every message lives in the app itself.
   and low when sad).
 - Idles between random actions — jump, spin, play with a ball, look
   around, stretch, nap, or a quiet sigh with a tear — weighted by mood
-  (`pickAction` in `CatCharacter.kt`): mostly jumping/playing when Lina's
+  (`pickAction` in `CatCharacter.kt`): mostly jumping/playing when Chimy's
   mood is Good, mostly napping/sighing when it's Too Bad.
 - **Always on screen** once enabled — tapping anywhere else on the screen
   never dismisses it. The only way to remove it is the switch in the app
@@ -46,7 +46,7 @@ All content lives in `data/MoodMessages.kt` and `data/FunMessages.kt`:
 - **Too Bad** — 150+ lines, comfort and reassurance
 - **Normal** — 115+ lines
 - **Good** — 130+ lines
-- **Fun** — 60+ playful "lina 🥺 your cat loves you" style lines
+- **Fun** — 60+ playful "chimy 🥺 your cat loves you" style lines
 
 `MessagePicker` uses a shuffle-bag per pool so a line won't repeat until
 the whole pool has cycled once. `MoodStore` keeps a local mood-history

@@ -15,34 +15,34 @@ enum class Mood {
 enum class DaySlot(val greetings: List<String>) {
     MORNING(
         listOf(
-            "Good morning Lina 🐱 — how are you feeling?",
-            "Morning, Lina! How's your mood so far today?",
-            "Rise and shine, Lina 🐱 How are you today?",
-            "New day, Lina. How's your heart feeling?"
+            "Good morning Chimy 🐱 — how are you feeling?",
+            "Morning, Chimy! How's your mood so far today?",
+            "Rise and shine, Chimy 🐱 How are you today?",
+            "New day, Chimy. How's your heart feeling?"
         )
     ),
     AFTERNOON(
         listOf(
-            "Afternoon check-in, Lina — how are you feeling?",
-            "Hey Lina 🐱 how's your day going so far?",
-            "Midday mood check, Lina. How are you?",
-            "Just checking in, Lina — how's your mood right now?"
+            "Afternoon check-in, Chimy — how are you feeling?",
+            "Hey Chimy 🐱 how's your day going so far?",
+            "Midday mood check, Chimy. How are you?",
+            "Just checking in, Chimy — how's your mood right now?"
         )
     ),
     EVENING(
         listOf(
-            "Evening, Lina 🐱 how are you feeling?",
-            "How's the evening treating you, Lina?",
-            "Hey Lina, how's your mood this evening?",
-            "Evening check-in — how are you, Lina?"
+            "Evening, Chimy 🐱 how are you feeling?",
+            "How's the evening treating you, Chimy?",
+            "Hey Chimy, how's your mood this evening?",
+            "Evening check-in — how are you, Chimy?"
         )
     ),
     NIGHT(
         listOf(
-            "Before you wind down, Lina — how are you feeling?",
-            "Late check-in, Lina 🐱 how was today?",
-            "Night mood check, Lina — how are you?",
-            "How are you feeling tonight, Lina?"
+            "Before you wind down, Chimy — how are you feeling?",
+            "Late check-in, Chimy 🐱 how was today?",
+            "Night mood check, Chimy — how are you?",
+            "How are you feeling tonight, Chimy?"
         )
     );
 

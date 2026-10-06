@@ -8,7 +8,7 @@ import android.app.Application
  * so it's visible next time the app is opened, even if something crashes
  * before MainActivity itself can set up its own try/catch blocks.
  */
-class LinaMoodApp : Application() {
+class ChimyMoodApp : Application() {
     override fun onCreate() {
         super.onCreate()
         val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
