@@ -68,7 +68,11 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
     /** Attaches the cat if the user has it switched on and overlay permission is granted. */
     fun refresh() {
         mainHandler.post {
-            if (catPrefs.enabled && hasOverlayPermission()) ensureAttached() else detach()
+            runCatching {
+                if (catPrefs.enabled && hasOverlayPermission()) ensureAttached() else detach()
+            }.onFailure {
+                com.seyfbk.dynamicnotify.CrashLog.record(context, "CatOverlay.refresh", it)
+            }
         }
     }
 
@@ -88,26 +92,34 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
 
     fun showMessage(text: String, colorHex: String) {
         mainHandler.post {
-            if (!ensureAttached()) return@post
-            dismissRunnable?.let { mainHandler.removeCallbacks(it) }
-            bubbleState.value = Bubble.Message(text, colorHex)
-            hop()
-            resizeAfterLayout()
+            runCatching {
+                if (!ensureAttached()) return@post
+                dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+                bubbleState.value = Bubble.Message(text, colorHex)
+                hop()
+                resizeAfterLayout()
 
-            val readMs = (1800L + text.length * 45L).coerceIn(4000L, 12000L)
-            val runnable = Runnable { dismissBubble() }
-            dismissRunnable = runnable
-            mainHandler.postDelayed(runnable, readMs)
+                val readMs = (1800L + text.length * 45L).coerceIn(4000L, 12000L)
+                val runnable = Runnable { dismissBubble() }
+                dismissRunnable = runnable
+                mainHandler.postDelayed(runnable, readMs)
+            }.onFailure {
+                com.seyfbk.dynamicnotify.CrashLog.record(context, "CatOverlay.showMessage", it)
+            }
         }
     }
 
     fun showAsk(greeting: String, onPick: (Mood) -> Unit) {
         mainHandler.post {
-            if (!ensureAttached()) return@post
-            dismissRunnable?.let { mainHandler.removeCallbacks(it) }
-            bubbleState.value = Bubble.Ask(greeting, onPick)
-            hop()
-            resizeAfterLayout()
+            runCatching {
+                if (!ensureAttached()) return@post
+                dismissRunnable?.let { mainHandler.removeCallbacks(it) }
+                bubbleState.value = Bubble.Ask(greeting, onPick)
+                hop()
+                resizeAfterLayout()
+            }.onFailure {
+                com.seyfbk.dynamicnotify.CrashLog.record(context, "CatOverlay.showAsk", it)
+            }
         }
     }
 
@@ -116,11 +128,29 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
         resizeAfterLayout()
     }
 
+    /**
+     * Hides the cat (toggled off, or overlay permission missing). This is
+     * called far more often than once, so it must NOT move the lifecycle to
+     * DESTROYED — that's a one-way terminal state in LifecycleRegistry and
+     * would permanently break re-attaching later. Parking at CREATED (or
+     * leaving it at INITIALIZED if it was never attached in the first
+     * place) keeps this CatOverlay reusable.
+     */
     fun detach() {
         composeView?.let { runCatching { windowManager.removeView(it) } }
         composeView = null
         params = null
-        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+        if (lifecycleRegistry.currentState != Lifecycle.State.INITIALIZED) {
+            lifecycleRegistry.currentState = Lifecycle.State.CREATED
+        }
+    }
+
+    /** Permanently tears this overlay down — only call this when the whole service is dying. */
+    fun destroy() {
+        detach()
+        if (lifecycleRegistry.currentState != Lifecycle.State.INITIALIZED) {
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
+        }
     }
 
     // ------------------------------------------------------------ window plumbing

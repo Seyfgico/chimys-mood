@@ -177,7 +177,8 @@ class MoodForegroundService : Service() {
             .build()
 
     override fun onDestroy() {
-        overlay?.detach()
+        runCatching { overlay?.destroy() }
+            .onFailure { com.seyfbk.dynamicnotify.CrashLog.record(applicationContext, "CatOverlay.destroy", it) }
         super.onDestroy()
     }
 
