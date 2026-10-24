@@ -34,9 +34,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }.onFailure { CrashLog.record(this, "notifPermissionLauncher.launch", it) }
 
         // Fully local — arm the tick schedule and start the mood engine as
         // soon as the app is opened. No server, no network, no setup.
