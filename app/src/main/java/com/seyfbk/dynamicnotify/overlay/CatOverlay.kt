@@ -60,7 +60,7 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
     private val bubbleState = mutableStateOf<Bubble?>(null)
     private var dismissRunnable: Runnable? = null
 
-    private val catSizeDp = 78
+    private val catSizeDp = 64
     private val bubbleMaxWidthDp = 230
 
     // ------------------------------------------------------------ lifecycle
@@ -197,7 +197,7 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
             setViewTreeLifecycleOwner(this@CatOverlay)
             setViewTreeSavedStateRegistryOwner(this@CatOverlay)
             setContent {
-                Column(modifier = Modifier.width(bubbleMaxWidthDp.dp).padding(4.dp)) {
+                Column(modifier = Modifier.padding(4.dp)) {
                     androidx.compose.foundation.layout.Box(
                         modifier = Modifier
                             .size(catSizeDp.dp)
@@ -224,20 +224,28 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
                     }
 
                     when (val bubble = bubbleState.value) {
-                        is Bubble.Message -> MessageBubble(
-                            text = bubble.text,
-                            accentHex = bubble.colorHex,
-                            onClick = { dismissBubble() }
-                        )
-                        is Bubble.Ask -> AskBubble(
-                            greeting = bubble.greeting,
-                            onPick = { mood ->
-                                val cb = bubble.onPick
-                                bubbleState.value = null
-                                resizeAfterLayout()
-                                cb(mood)
-                            }
-                        )
+                        is Bubble.Message -> androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.width(bubbleMaxWidthDp.dp)
+                        ) {
+                            MessageBubble(
+                                text = bubble.text,
+                                accentHex = bubble.colorHex,
+                                onClick = { dismissBubble() }
+                            )
+                        }
+                        is Bubble.Ask -> androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.width(bubbleMaxWidthDp.dp)
+                        ) {
+                            AskBubble(
+                                greeting = bubble.greeting,
+                                onPick = { mood ->
+                                    val cb = bubble.onPick
+                                    bubbleState.value = null
+                                    resizeAfterLayout()
+                                    cb(mood)
+                                }
+                            )
+                        }
                         null -> Unit
                     }
                 }
