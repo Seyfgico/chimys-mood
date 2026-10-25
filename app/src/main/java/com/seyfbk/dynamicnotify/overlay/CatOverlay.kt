@@ -60,7 +60,7 @@ class CatOverlay(private val context: Context) : LifecycleOwner, SavedStateRegis
     private val bubbleState = mutableStateOf<Bubble?>(null)
     private var dismissRunnable: Runnable? = null
 
-    private val catSizeDp = 92
+    private val catSizeDp = 78
     private val bubbleMaxWidthDp = 230
 
     // ------------------------------------------------------------ lifecycle

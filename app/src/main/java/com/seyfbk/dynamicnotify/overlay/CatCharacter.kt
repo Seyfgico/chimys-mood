@@ -44,7 +44,10 @@ enum class CatAction(val durationMs: Int) {
     LOOK_AROUND(2800), // eyes and head wander
     STRETCH(2000),     // stretch + yawn
     SLEEP(6500),       // curls up, eyes closed, floating Zs
-    SIGH(2800)         // head droops, a tear rolls
+    SIGH(2800),        // head droops, a tear rolls
+    POUNCE(900),       // crouches down, then playfully leaps forward
+    WIGGLE(1000),      // happy little side-to-side wiggle dance
+    CURIOUS(900)       // quick "huh?" head-tilt with perked ears
 }
 
 /** What the cat tends to do depends on how Chimy is feeling. */
@@ -52,15 +55,17 @@ private fun pickAction(mood: Mood): CatAction {
     val weights: List<Pair<CatAction, Int>> = when (mood) {
         Mood.GOOD -> listOf(
             CatAction.JUMP to 5, CatAction.PLAY to 4, CatAction.SPIN to 2,
+            CatAction.POUNCE to 3, CatAction.WIGGLE to 3,
             CatAction.LOOK_AROUND to 2, CatAction.STRETCH to 1
         )
         Mood.NORMAL -> listOf(
             CatAction.LOOK_AROUND to 4, CatAction.STRETCH to 3, CatAction.SLEEP to 2,
-            CatAction.PLAY to 2, CatAction.JUMP to 1
+            CatAction.PLAY to 2, CatAction.JUMP to 1,
+            CatAction.CURIOUS to 3, CatAction.WIGGLE to 1
         )
         Mood.TOO_BAD -> listOf(
             CatAction.SIGH to 4, CatAction.SLEEP to 4,
-            CatAction.LOOK_AROUND to 2, CatAction.STRETCH to 1
+            CatAction.LOOK_AROUND to 2, CatAction.STRETCH to 1, CatAction.CURIOUS to 1
         )
     }
     var roll = Random.nextInt(weights.sumOf { it.second })
@@ -240,6 +245,33 @@ private fun DrawScope.drawCat(mood: Mood, action: CatAction?, p: Float, phase: F
             sqY -= 0.03f * s
             headTilt -= 4f * s
             tear = p
+        }
+        CatAction.POUNCE -> {
+            // Crouch down for the first third, then leap forward.
+            val crouch = if (p < 0.35f) sin(PI_F * (p / 0.35f)) else 0f
+            val leap = if (p >= 0.35f) sin(PI_F * ((p - 0.35f) / 0.65f)) else 0f
+            sqY -= 0.14f * crouch
+            sqX += 0.10f * crouch
+            offY -= 15f * leap
+            jumpH = 15f * leap
+            happyEyes = leap > 0.3f
+            mouthOpen = leap * 0.5f
+            earDroop -= 7f * (crouch + leap)
+        }
+        CatAction.WIGGLE -> {
+            val s = sin(TWO_PI_F * p * 3f)
+            rot = 9f * s
+            headTilt += 5f * s
+            pupilX = 2f * s
+            mouthOpen = 0.25f + 0.2f * abs(s)
+            happyEyes = true
+            earTwitch = 4f * sin(TWO_PI_F * p * 5f)
+        }
+        CatAction.CURIOUS -> {
+            val s = sin(PI_F * p)
+            headTilt += 14f * s
+            earTwitch = 10f * s
+            pupilX = 3f * s
         }
         null -> Unit
     }
